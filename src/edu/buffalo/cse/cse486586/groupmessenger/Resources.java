@@ -1,9 +1,7 @@
 package edu.buffalo.cse.cse486586.groupmessenger;
 
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
-import java.util.Queue;
 
 public class Resources {
 	static final String REMOTE_PORT0 = "11108";
@@ -17,6 +15,17 @@ public class Resources {
 
 	static int messageCount = 0;
 
+	static String myPort;
+
+	static int localCounter;
+	static int globalCounter;
+
+	static int providerCount = 0;
+
+	static Map<Integer, Message> holdBackMap = new HashMap<Integer, Message>();
+	
+	static Map<String, Integer> messageCounter = new HashMap<String, Integer>();
+	
 	public static int getMessageCount() {
 		return messageCount;
 	}
@@ -33,13 +42,6 @@ public class Resources {
 		Resources.providerCount = providerCount;
 	}
 
-	static String myPort;
-
-	static int localCounter;
-	static int globalCounter;
-
-	static int providerCount = 0;
-
 	public static int getLocalCounter() {
 		return localCounter;
 	}
@@ -55,8 +57,6 @@ public class Resources {
 	public static void setGlobalCounter(int globalCounter) {
 		Resources.globalCounter = globalCounter;
 	}
-
-	static Map<Integer, Message> holdBackMap = new HashMap<Integer, Message>();
 
 	public static String getMyPort() {
 		return myPort;

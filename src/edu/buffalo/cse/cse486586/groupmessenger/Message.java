@@ -1,6 +1,7 @@
 package edu.buffalo.cse.cse486586.groupmessenger;
 
 import java.io.Serializable;
+import java.util.Map;
 
 public class Message implements Serializable {
 
@@ -10,6 +11,16 @@ public class Message implements Serializable {
 	private int sequenceNumber;
 	private MessageType messageType;
 	private String messageId;
+	
+	private Map<String, Integer> messageCounterMap;
+
+	public Map<String, Integer> getMessageCounterMap() {
+		return messageCounterMap;
+	}
+
+	public void setMessageCounterMap(Map<String, Integer> messageCounterMap) {
+		this.messageCounterMap = messageCounterMap;
+	}
 
 	public String getMsg() {
 		return msg;

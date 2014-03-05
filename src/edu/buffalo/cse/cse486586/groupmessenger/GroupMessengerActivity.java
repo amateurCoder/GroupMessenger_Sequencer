@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Map;
 
 import android.app.Activity;
 import android.content.ContentValues;
@@ -78,6 +79,10 @@ public class GroupMessengerActivity extends Activity {
 		Resources.setLocalCounter(0);
 		if (Resources.myPort.equals(SEQUENCER_PORT)) {
 			Resources.setGlobalCounter(-1);
+		}
+
+		for (int i = 0; i < Resources.remotePorts.length; i++) {
+			Resources.messageCounter.put(Resources.remotePorts[i], 0);
 		}
 
 		try {
@@ -174,22 +179,58 @@ public class GroupMessengerActivity extends Activity {
 							MessageType.ORDER)) {
 						int S = message.getSequenceNumber();
 
-						if (Resources.localCounter == S) {
+						if (Resources.localCounter == S){
+								//&& isCausalOrdering(
+									//	message.getMessageCounterMap(),
+										//message.getPortNumber())) {
 							publishProgress(message.getMsg());
 							Resources.localCounter = Resources.localCounter + 1;
 							while (isMoreMessagePresent()) {
-								publishProgress(getMessageFromMap(Resources.localCounter));
+								Message deliveredMessage = getMessageFromMap(Resources.localCounter);
+								
+								//Causal ordering
+//								int count = Resources.messageCounter.get(deliveredMessage.getPortNumber());
+//								count++;
+//								Resources.messageCounter.put(deliveredMessage.getPortNumber(), count);
+								
+								//Total odering
+								publishProgress(deliveredMessage.getMsg());
 								Resources.localCounter++;
 							}
 						} else {
 							// Keep in hold back map
 							Resources.holdBackMap.put(S, message);
+							
 						}
 
 					}
 				}
 			}
 
+		}
+
+		private boolean isCausalOrdering(Map<String, Integer> receivedMap,
+				String senderPortNumber) {
+			if ((receivedMap.get(senderPortNumber) == Resources.messageCounter
+					.get(senderPortNumber) + 1)
+					&& (isConsistentWithOtherProcesses(receivedMap,
+							senderPortNumber))) {
+				return true;
+			}
+			return false;
+		}
+
+		private boolean isConsistentWithOtherProcesses(
+				Map<String, Integer> receivedMap, String senderPortNumber) {
+			for (String port : receivedMap.keySet()) {
+				if (!port.equals(senderPortNumber)) {
+					if (receivedMap.get(port) > Resources.messageCounter
+							.get(port)) {
+						return false;
+					}
+				}
+			}
+			return false;
 		}
 
 		private boolean isMoreMessagePresent() {
@@ -199,8 +240,8 @@ public class GroupMessengerActivity extends Activity {
 			return false;
 		}
 
-		private String getMessageFromMap(int sequenceNumber) {
-			return Resources.holdBackMap.get(sequenceNumber).getMsg();
+		private Message getMessageFromMap(int sequenceNumber) {
+			return Resources.holdBackMap.get(sequenceNumber);
 		}
 
 		protected void onProgressUpdate(String... strings) {
@@ -248,6 +289,7 @@ public class GroupMessengerActivity extends Activity {
 				message.setMessageType(MessageType.NEW_MESSAGE);
 				Resources.messageCount++;
 				msgId = myPort + Resources.messageCount;
+
 				try {
 					socket = new Socket(InetAddress.getByAddress(new byte[] {
 							10, 0, 2, 2 }), Integer.parseInt(SEQUENCER_PORT));
@@ -275,6 +317,12 @@ public class GroupMessengerActivity extends Activity {
 			} else if (msgs[3] == MessageType.ORDER.toString()) {
 				message.setMessageType(MessageType.ORDER);
 				message.setSequenceNumber(Integer.parseInt(msgs[4]));
+
+//				// For causal ordering
+//				int counter = Resources.messageCounter.get(myPort);
+//				counter++;
+//				Resources.messageCounter.put(myPort, counter);
+//				message.setMessageCounterMap(Resources.messageCounter);
 
 				for (int i = 0; i < Resources.remotePorts.length; i++) {
 					try {
