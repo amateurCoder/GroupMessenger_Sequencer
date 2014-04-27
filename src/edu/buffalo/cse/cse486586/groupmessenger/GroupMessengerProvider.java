@@ -33,6 +33,8 @@ import android.util.Log;
  */
 public class GroupMessengerProvider extends ContentProvider {
 
+	static final String TAG = GroupMessengerProvider.class.getSimpleName();
+
 	@Override
 	public int delete(Uri uri, String selection, String[] selectionArgs) {
 		// You do not need to implement this.
@@ -69,12 +71,9 @@ public class GroupMessengerProvider extends ContentProvider {
 			fileOutputStream.write(value.getBytes());
 			fileOutputStream.close();
 
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Log.e(TAG,
+					"IO Exception while writing to the file:" + e.getMessage());
 		}
 
 		return uri;
@@ -121,18 +120,18 @@ public class GroupMessengerProvider extends ContentProvider {
 
 			fileInputStream.close();
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Log.e(TAG,
+					"File not present while reading content from internal file storage:"
+							+ e.getMessage());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Log.e(TAG, "IO Exception while reading the file:" + e.getMessage());
 		}
 
 		Object[] row = new Object[cursor.getColumnCount()];
 
 		row[cursor.getColumnIndex("key")] = selection;
 		row[cursor.getColumnIndex("value")] = value;
-		
+
 		cursor.addRow(row);
 
 		return cursor;

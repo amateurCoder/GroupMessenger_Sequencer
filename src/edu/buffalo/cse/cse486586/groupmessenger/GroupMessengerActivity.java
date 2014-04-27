@@ -6,7 +6,6 @@ import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Map;
 
 import android.app.Activity;
 import android.content.ContentValues;
@@ -29,6 +28,7 @@ import android.widget.TextView;
  * @author stevko
  * 
  */
+
 public class GroupMessengerActivity extends Activity {
 
 	static final String TAG = GroupMessengerActivity.class.getSimpleName();
@@ -71,18 +71,14 @@ public class GroupMessengerActivity extends Activity {
 
 		final String myPort = String.valueOf((Integer.parseInt(portStr) * 2));
 
-		Resources.myPort = myPort;
+		Resources.sMyPort = myPort;
 
 		Resources.setMessageCount(0);
 		Resources.setProviderCount(0);
 
 		Resources.setLocalCounter(0);
-		if (Resources.myPort.equals(SEQUENCER_PORT)) {
+		if (Resources.sMyPort.equals(SEQUENCER_PORT)) {
 			Resources.setGlobalCounter(-1);
-		}
-
-		for (int i = 0; i < Resources.remotePorts.length; i++) {
-			Resources.messageCounter.put(Resources.remotePorts[i], 0);
 		}
 
 		try {
@@ -90,8 +86,9 @@ public class GroupMessengerActivity extends Activity {
 			new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,
 					serverSocket);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Log.e(TAG,
+					"IO Exception while creating Server socket:"
+							+ e.getMessage());
 		}
 
 		findViewById(R.id.button4).setOnClickListener(new OnClickListener() {
@@ -99,14 +96,12 @@ public class GroupMessengerActivity extends Activity {
 			@Override
 			public void onClick(View v) {
 				// Create Telephony service and Server/Client Async threads
-				Log.d(TAG, "####Button clicked");
-
 				final EditText editText = (EditText) findViewById(R.id.editText1);
 				String msg = editText.getText().toString();
 				editText.setText("");
 
 				new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR,
-						"", msg, Resources.myPort,
+						"", msg, Resources.sMyPort,
 						MessageType.NEW_MESSAGE.toString());
 
 			}
@@ -121,10 +116,12 @@ public class GroupMessengerActivity extends Activity {
 		return true;
 	}
 
+	/** Class for asynchronous Server task */
 	private class ServerTask extends AsyncTask<ServerSocket, String, Void> {
 
-		private static final String VALUE_FIELD = "value";
-		private static final String KEY_FIELD = "key";
+		public static final String CONTENT_PROVIDER_URL = "edu.buffalo.cse.cse486586.groupmessenger.provider";
+		public static final String VALUE_FIELD = "value";
+		public static final String KEY_FIELD = "key";
 
 		@Override
 		protected Void doInBackground(ServerSocket... sockets) {
@@ -133,16 +130,19 @@ public class GroupMessengerActivity extends Activity {
 			try {
 				readMessage(serverSocket);
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				Log.e(TAG,
+						"IO Exception while reading the message from the stream:"
+								+ e.getMessage());
 			} catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				Log.e(TAG,
+						"Class loader is unable to load the class:"
+								+ e.getMessage());
 			}
 
 			return null;
 		}
-
+		
+		/** Method to read from the stream and handle the type of messages received from another process*/
 		private void readMessage(ServerSocket serverSocket) throws IOException,
 				ClassNotFoundException {
 			Message message = null;
@@ -157,91 +157,54 @@ public class GroupMessengerActivity extends Activity {
 					// At sequencer
 					if (message.getMessageType()
 							.equals(MessageType.NEW_MESSAGE)) {
-						Log.d(TAG, "####Message Received:" + message.getMsg()
+
+						Log.d(TAG, "Message Received:" + message.getMsg()
 								+ ";Message Id:" + message.getMessageId()
 								+ ";Message Type:" + message.getMessageType()
 								+ ";From:" + message.getPortNumber()
-								+ ";My port:" + Resources.myPort);
+								+ ";My port:" + Resources.sMyPort);
 
-						// Save it in hold-back queue
-						// Resources.holdBackMap.put(arg0, arg1)
-						Resources.globalCounter++;
-						int sequence = Resources.globalCounter;
-						// if (Resources.myPort.equals(SEQUENCER_PORT)) {
+						Resources.sGlobalCounter++;
+						int sequence = Resources.sGlobalCounter;
+
 						new ClientTask().executeOnExecutor(
 								AsyncTask.SERIAL_EXECUTOR,
 								message.getMessageId(), message.getMsg(),
-								Resources.myPort, MessageType.ORDER.toString(),
+								Resources.sMyPort, MessageType.ORDER.toString(),
 								Integer.toString(sequence));
-						// }
 
 					} else if (message.getMessageType().equals(
 							MessageType.ORDER)) {
 						int S = message.getSequenceNumber();
 
-						if (Resources.localCounter == S){
-								//&& isCausalOrdering(
-									//	message.getMessageCounterMap(),
-										//message.getPortNumber())) {
+						if (Resources.sLocalCounter == S) {
 							publishProgress(message.getMsg());
-							Resources.localCounter = Resources.localCounter + 1;
+							Resources.sLocalCounter = Resources.sLocalCounter + 1;
 							while (isMoreMessagePresent()) {
-								Message deliveredMessage = getMessageFromMap(Resources.localCounter);
-								
-								//Causal ordering
-//								int count = Resources.messageCounter.get(deliveredMessage.getPortNumber());
-//								count++;
-//								Resources.messageCounter.put(deliveredMessage.getPortNumber(), count);
-								
-								//Total odering
+								Message deliveredMessage = getMessageFromMap(Resources.sLocalCounter);
 								publishProgress(deliveredMessage.getMsg());
-								Resources.localCounter++;
+								Resources.sLocalCounter++;
 							}
 						} else {
 							// Keep in hold back map
-							Resources.holdBackMap.put(S, message);
-							
+							Resources.sHoldBackMap.put(S, message);
 						}
-
 					}
 				}
 			}
-
 		}
 
-		private boolean isCausalOrdering(Map<String, Integer> receivedMap,
-				String senderPortNumber) {
-			if ((receivedMap.get(senderPortNumber) == Resources.messageCounter
-					.get(senderPortNumber) + 1)
-					&& (isConsistentWithOtherProcesses(receivedMap,
-							senderPortNumber))) {
-				return true;
-			}
-			return false;
-		}
-
-		private boolean isConsistentWithOtherProcesses(
-				Map<String, Integer> receivedMap, String senderPortNumber) {
-			for (String port : receivedMap.keySet()) {
-				if (!port.equals(senderPortNumber)) {
-					if (receivedMap.get(port) > Resources.messageCounter
-							.get(port)) {
-						return false;
-					}
-				}
-			}
-			return false;
-		}
-
+		/** Method to check whether there are messages in hold back map.*/
 		private boolean isMoreMessagePresent() {
-			if (Resources.holdBackMap.containsKey(Resources.localCounter)) {
+			if (Resources.sHoldBackMap.containsKey(Resources.sLocalCounter)) {
 				return true;
 			}
 			return false;
 		}
 
+		/** Method to fetch messages from the hold back queue*/
 		private Message getMessageFromMap(int sequenceNumber) {
-			return Resources.holdBackMap.get(sequenceNumber);
+			return Resources.sHoldBackMap.get(sequenceNumber);
 		}
 
 		protected void onProgressUpdate(String... strings) {
@@ -251,18 +214,16 @@ public class GroupMessengerActivity extends Activity {
 
 			// Send to content provider
 			ContentValues entry = new ContentValues();
-			entry.put(KEY_FIELD, Resources.providerCount++);
+			entry.put(KEY_FIELD, Resources.sProviderCount++);
 			entry.put(VALUE_FIELD, msg);
-			Log.d(TAG, "####Message:" + (Resources.providerCount - 1) + ":"
-					+ msg);
-			remoteTextView.append(Resources.providerCount - 1 + ":" + msg
+			Log.d(TAG, "Message:" + (Resources.sProviderCount - 1) + ":" + msg);
+			remoteTextView.append(Resources.sProviderCount - 1 + ":" + msg
 					+ "\t\n");
-			getContentResolver()
-					.insert(buildUri("content",
-							"edu.buffalo.cse.cse486586.groupmessenger.provider"),
-							entry);
+			getContentResolver().insert(
+					buildUri("content", CONTENT_PROVIDER_URL), entry);
 		}
 
+		/** Method to create the URI to write to content provider*/
 		private Uri buildUri(String scheme, String authority) {
 			Uri.Builder uriBuilder = new Uri.Builder();
 			uriBuilder.authority(authority);
@@ -272,29 +233,33 @@ public class GroupMessengerActivity extends Activity {
 
 	}
 
+	/** Class for asynchronous Client task */
 	private class ClientTask extends AsyncTask<String, Void, Void> {
 
 		@Override
 		protected Void doInBackground(String... msgs) {
+			Socket socket = null;
+			ObjectOutputStream objectOutputStream;
+
 			Message message = new Message();
 			String msgId = msgs[0];
 			String msgToSend = msgs[1];
 			String myPort = msgs[2];
-			Socket socket = null;
-			ObjectOutputStream objectOutputStream;
+
 			message.setMsg(msgToSend);
 			message.setMessageId(msgId);
 			message.setPortNumber(myPort);
+
 			if (msgs[3] == MessageType.NEW_MESSAGE.toString()) {
 				message.setMessageType(MessageType.NEW_MESSAGE);
-				Resources.messageCount++;
-				msgId = myPort + Resources.messageCount;
+				Resources.sMessageCount++;
+				msgId = myPort + Resources.sMessageCount;
 
 				try {
 					socket = new Socket(InetAddress.getByAddress(new byte[] {
 							10, 0, 2, 2 }), Integer.parseInt(SEQUENCER_PORT));
 
-					Log.d(TAG, "####Message Sent:" + message.getMsg()
+					Log.d(TAG, "Message Sent:" + message.getMsg()
 							+ ";Message Id:" + message.getMessageId()
 							+ ";Message Type:" + message.getMessageType()
 							+ ";My port:" + message.getPortNumber()
@@ -306,36 +271,28 @@ public class GroupMessengerActivity extends Activity {
 					objectOutputStream.writeObject(message);
 					objectOutputStream.close();
 					socket.close();
-				} catch (NumberFormatException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					Log.e(TAG,
+							"IO Exception while creating socket:"
+									+ e.getMessage());
 				}
 
 			} else if (msgs[3] == MessageType.ORDER.toString()) {
 				message.setMessageType(MessageType.ORDER);
 				message.setSequenceNumber(Integer.parseInt(msgs[4]));
 
-//				// For causal ordering
-//				int counter = Resources.messageCounter.get(myPort);
-//				counter++;
-//				Resources.messageCounter.put(myPort, counter);
-//				message.setMessageCounterMap(Resources.messageCounter);
-
-				for (int i = 0; i < Resources.remotePorts.length; i++) {
+				for (int i = 0; i < Resources.sRemotePorts.length; i++) {
 					try {
 						socket = new Socket(
 								InetAddress.getByAddress(new byte[] { 10, 0, 2,
 										2 }),
-								Integer.parseInt(Resources.remotePorts[i]));
+								Integer.parseInt(Resources.sRemotePorts[i]));
 
-						Log.d(TAG, "####Message Sent:" + message.getMsg()
+						Log.d(TAG, "Message Sent:" + message.getMsg()
 								+ ";Message Id:" + message.getMessageId()
 								+ ";Message Type:" + message.getMessageType()
 								+ ";My port:" + message.getPortNumber()
-								+ ";To port:" + Resources.remotePorts[i]
+								+ ";To port:" + Resources.sRemotePorts[i]
 								+ ";Sequence:" + message.getSequenceNumber());
 
 						objectOutputStream = new ObjectOutputStream(
@@ -343,18 +300,15 @@ public class GroupMessengerActivity extends Activity {
 						objectOutputStream.writeObject(message);
 						objectOutputStream.close();
 						socket.close();
-					} catch (NumberFormatException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
 					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						Log.e(TAG,
+								"IO Exception while creating socket:"
+										+ e.getMessage());
 					}
 
 				}
 			}
 			return null;
-
 		}
 
 	}

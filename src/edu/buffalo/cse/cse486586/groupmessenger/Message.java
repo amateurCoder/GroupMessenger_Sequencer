@@ -3,63 +3,70 @@ package edu.buffalo.cse.cse486586.groupmessenger;
 import java.io.Serializable;
 import java.util.Map;
 
+/**
+ * POJO class used to pass message in input/output streams
+ * 
+ * @author ankitsul
+ * 
+ */
+
 public class Message implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	private String msg;
-	private String portNumber;
-	private int sequenceNumber;
-	private MessageType messageType;
-	private String messageId;
-	
-	private Map<String, Integer> messageCounterMap;
+	private String mMsg;
+	private String mPortNumber;
+	private int mSequenceNumber;
+	private MessageType mMessageType;
+	private String mMessageId;
+
+	private Map<String, Integer> mMessageCounterMap;
 
 	public Map<String, Integer> getMessageCounterMap() {
-		return messageCounterMap;
+		return mMessageCounterMap;
 	}
 
 	public void setMessageCounterMap(Map<String, Integer> messageCounterMap) {
-		this.messageCounterMap = messageCounterMap;
+		this.mMessageCounterMap = messageCounterMap;
 	}
 
 	public String getMsg() {
-		return msg;
+		return mMsg;
 	}
 
 	public void setMsg(String msg) {
-		this.msg = msg;
+		this.mMsg = msg;
 	}
 
 	public String getPortNumber() {
-		return portNumber;
+		return mPortNumber;
 	}
 
 	public void setPortNumber(String portNumber) {
-		this.portNumber = portNumber;
+		this.mPortNumber = portNumber;
 	}
 
 	public int getSequenceNumber() {
-		return sequenceNumber;
+		return mSequenceNumber;
 	}
 
 	public void setSequenceNumber(int sequenceNumber) {
-		this.sequenceNumber = sequenceNumber;
+		this.mSequenceNumber = sequenceNumber;
 	}
 
 	public MessageType getMessageType() {
-		return messageType;
+		return mMessageType;
 	}
 
 	public void setMessageType(MessageType messageType) {
-		this.messageType = messageType;
+		this.mMessageType = messageType;
 	}
 
 	public String getMessageId() {
-		return messageId;
+		return mMessageId;
 	}
 
 	public void setMessageId(String messageId) {
-		this.messageId = messageId;
+		this.mMessageId = messageId;
 	}
 
 }
